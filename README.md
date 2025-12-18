@@ -1,0 +1,2 @@
+# GearX
+GearX discord bot
