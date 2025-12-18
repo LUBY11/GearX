@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Spam Guard 로그인{% endblock %}
+{% block crumb %}로그인{% endblock %}
+{% block heading %}Spam Guard 연결{% endblock %}
+{% block content %}
+<section class="panel hero">
+    <div>
+        <p class="eyebrow">Discord Bot</p>
+        <h2>스팸 차단을 대시보드로 관리하세요</h2>
+        <p class="muted">OAuth2로 로그인하면 관리 권한이 있는 길드를 불러오고, 링크 차단·멘션 제한·신규 유저 보호 정책을 바로 조정할 수 있습니다.</p>
+        <div class="hero-actions">
+            <a href="/auth/login" class="btn-primary">Discord로 계속하기</a>
+            <a href="/" class="btn-ghost">대시보드 보기</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

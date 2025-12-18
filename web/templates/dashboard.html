@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}길드 로그 대시보드{% endblock %}
+{% block crumb %}로그{% endblock %}
+{% block heading %}{{ active_guild_name or "대시보드" }}{% endblock %}
+{% block actions %}
+<a class="btn-primary" href="/auth/login">+ 계정 연결</a>
+{% endblock %}
+{% block content %}
+<section class="toolbar">
+    <form class="search" method="get" action="/">
+        <select name="guild_id" onchange="this.form.submit()">
+            {% for g in all_guilds or [] %}
+            <option value="{{ g.id }}" {% if active_guild_id and active_guild_id==g.id %}selected{% endif %}>{{ g.name
+                or g.id }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">이동</button>
+    </form>
+</section>
+
+<section class="panel">
+    <header class="panel__header">
+        <div>
+            <p class="eyebrow">최근 스팸 로그</p>
+            <h2>{{ active_guild_name or "전체" }}</h2>
+        </div>
+        <span class="badge neutral">{{ recent_logs|length }}건</span>
+    </header>
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>길드</th>
+                    <th>사용자</th>
+                    <th>액션</th>
+                    <th>사유</th>
+                    <th>포인트</th>
+                    <th>시간</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in recent_logs %}
+                {% set log = item.log %}
+                <tr>
+                    <td>
+                        <div class="stack">
+                            <span class="name">{{ item.guild.name }}</span>
+                            <span class="muted">ID: {{ item.guild.id }}</span>
+                        </div>
+                    </td>
+                    <td>{{ log.user_id }}</td>
+                    <td><span class="pill accent">{{ log.action or 'auto' }}</span></td>
+                    <td>{{ log.reason }}</td>
+                    <td>{{ log.points }}</td>
+                    <td class="muted">{{ log.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="empty-state">로그가 없습니다.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel">
+    <header class="panel__header">
+        <div>
+            <p class="eyebrow">강제퇴/밴 기록</p>
+            <h2>{{ active_guild_name or "전체" }}</h2>
+        </div>
+        <span class="badge neutral">{{ kicked_logs|length }}건</span>
+    </header>
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>길드</th>
+                    <th>사용자</th>
+                    <th>액션</th>
+                    <th>사유</th>
+                    <th>시간</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in kicked_logs %}
+                {% set log = item.log %}
+                <tr>
+                    <td>{{ item.guild.name }}</td>
+                    <td>{{ log.user_id }}</td>
+                    <td><span class="pill danger">{{ log.action }}</span></td>
+                    <td>{{ log.reason }}</td>
+                    <td class="muted">{{ log.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="empty-state">강제퇴/밴 기록이 없습니다.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<script>
+    // Real-time updates via Server-Sent Events
+    const evtSource = new EventSource('/events');
+
+    evtSource.onopen = function () {
+        console.log('SSE 연결됨');
+    };
+
+    evtSource.onmessage = function (event) {
+        console.log('SSE 메시지 수신:', event.data);
+        const data = JSON.parse(event.data);
+        if (data.type === 'new_log') {
+            // Show notification and reload page to get fresh data
+            showNotification('새 로그가 추가되었습니다');
+            setTimeout(() => location.reload(), 1500);
+        }
+    };
+
+    evtSource.onerror = function (err) {
+        console.error('SSE 에러:', err);
+    };
+
+    function showNotification(message) {
+        const toast = document.createElement('div');
+        toast.className = 'toast-notification';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+</script>
+{% endblock %}

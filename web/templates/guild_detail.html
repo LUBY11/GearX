@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+{% block title %}{{ guild.name }} 설정{% endblock %}
+{% block crumb %}길드 상세{% endblock %}
+{% block heading %}{{ guild.name }}{% endblock %}
+{% block actions %}
+<a class="btn-ghost" href="/">← 목록</a>
+{% endblock %}
+{% block content %}
+<div class="panel">
+    <div class="tab-bar">
+        <a class="tab {% if active_tab == 'overview' %}active{% endif %}" href="/guilds/{{ guild.id }}?tab=overview"
+            data-tab="overview">개요</a>
+        <a class="tab {% if active_tab == 'settings' %}active{% endif %}" href="/guilds/{{ guild.id }}?tab=settings"
+            data-tab="settings">설정</a>
+        <a class="tab {% if active_tab == 'logs' %}active{% endif %}" href="/guilds/{{ guild.id }}?tab=logs"
+            data-tab="logs">로그</a>
+        <a class="tab {% if active_tab == 'users' %}active{% endif %}" href="/guilds/{{ guild.id }}?tab=users"
+            data-tab="users">유저</a>
+        <a class="tab {% if active_tab == 'currency' %}active{% endif %}" href="/guilds/{{ guild.id }}?tab=currency"
+            data-tab="currency">환율 리포트</a>
+        <a class="tab {% if active_tab == 'exceptions' %}active{% endif %}" href="/guilds/{{ guild.id }}?tab=exceptions"
+            data-tab="exceptions">AI 예외 키워드</a>
+        <a class="tab {% if active_tab == 'debug' %}active{% endif %}" href="/guilds/{{ guild.id }}?tab=debug"
+            data-tab="debug">디버깅</a>
+    </div>
+
+    <div class="tab-section {% if active_tab == 'overview' %}active{% endif %}" data-section="overview">
+        <div class="panel subtle-panel">
+            <div class="panel__header">
+                <div>
+                    <p class="eyebrow">요약</p>
+                    <h3>{{ guild_name }}</h3>
+                </div>
+                <span class="badge neutral">ID: {{ guild.id }}</span>
+            </div>
+            <p class="muted">스팸 한도: {{ settings.spam_limit }}회 / {{ settings.time_window }}초 · 멘션 한도: {{
+                settings.mention_limit }} · 링크 차단: {{ 'ON' if settings.link_block else 'OFF' }}</p>
+            <p class="muted">AI 예외 키워드: {{ keywords|length }}개 · 디버깅 로그: {{ debug_logs|length }}건</p>
+        </div>
+    </div>
+
+    <div class="tab-section {% if active_tab == 'settings' %}active{% endif %}" data-section="settings">
+        <form method="post" action="/guilds/{{ guild.id }}/settings" class="form-grid" style="margin-top: 16px;">
+            <div class="form-section full">
+                <p class="eyebrow">기본 보호 설정</p>
+            </div>
+            <label>
+                <span>스팸 차단 활성화</span>
+                <label class="switch">
+                    <input type="checkbox" name="enabled" value="true" {% if settings.enabled %}checked{% endif %}>
+                    <span class="slider"></span>
+                </label>
+            </label>
+            <label>
+                <span>메시지 한도</span>
+                <input type="number" min="1" name="spam_limit" value="{{ settings.spam_limit }}" required>
+            </label>
+            <label>
+                <span>시간 창(초)</span>
+                <input type="number" min="1" name="time_window" value="{{ settings.time_window }}" required>
+            </label>
+            <div class="form-section full">
+                <p class="eyebrow">콘텐츠 필터</p>
+            </div>
+            <label>
+                <span>링크 차단</span>
+                <label class="switch">
+                    <input type="checkbox" name="link_block" value="true" {% if settings.link_block %}checked{% endif
+                        %}>
+                    <span class="slider"></span>
+                </label>
+            </label>
+            <label>
+                <span>멘션 한도</span>
+                <input type="number" min="1" name="mention_limit" value="{{ settings.mention_limit }}" required>
+            </label>
+            <div class="form-section full">
+                <p class="eyebrow">신규 사용자 보호</p>
+            </div>
+            <label>
+                <span>신규 보호(분)</span>
+                <input type="number" min="1" name="new_user_minutes" value="{{ settings.new_user_minutes }}" required>
+            </label>
+            <div class="form-actions">
+                <span class="muted">길드 ID: {{ guild.id }}</span>
+                <div style="display:flex; gap:8px;">
+                    <a class="btn-ghost" href="/guilds/{{ guild.id }}?tab=logs">로그 보기</a>
+                    <button type="submit" class="btn-primary">저장</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="tab-section {% if active_tab == 'currency' %}active{% endif %}" data-section="currency">
+        <div class="panel subtle-panel">
+            <div class="panel__header">
+                <div>
+                    <p class="eyebrow">환율 리포트</p>
+                    <h3>{{ guild_name }}</h3>
+                </div>
+            </div>
+            {% set hours = currency_config.interval_minutes // 60 %}
+            {% set minutes = currency_config.interval_minutes % 60 %}
+            <p class="muted">
+                {% if not currency_config.enabled %}
+                <span class="pill warning">글로벌 스케줄 비활성화 (환경 변수)</span><br>
+                {% endif %}
+                {{ hours }}시간 {{ minutes }}분 간격으로 자동 전송됩니다.
+                {% if currency_next_run_iso %}
+                <br>다음 전송까지
+                <strong id="currency-countdown" data-target="{{ currency_next_run_iso }}"
+                    data-interval="{{ currency_config.interval_minutes }}">--:--</strong>
+                {% endif %}
+            </p>
+            <p class="muted">다음 전송 예정: {{ currency_next_run_display or '---' }}</p>
+            <form method="post" action="/guilds/{{ guild.id }}/currency" class="form-grid" style="margin-top: 16px;">
+                <label>
+                    <span>환율 리포트 활성화</span>
+                    <label class="switch">
+                        <input type="checkbox" name="enabled" value="true" {% if settings.currency_report_enabled %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </label>
+                <label>
+                    <span>전송 채널</span>
+                    {% set selected_channel = settings.currency_report_channel_id or currency_config.channel_id %}
+                    <select name="channel_id">
+                        <option value="">(기본 채널 사용)</option>
+                        {% for channel in currency_channels %}
+                        <option value="{{ channel.id }}" {% if selected_channel and selected_channel|string == channel.id|string %}selected{% endif %}>
+                            #{{ channel.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <div class="form-actions">
+                    <span class="muted">기본 채널: {{ currency_config.channel_id or '미설정' }}</span>
+                    <button type="submit" class="btn-primary">설정 저장</button>
+                </div>
+            </form>
+            <form method="post" action="/guilds/{{ guild.id }}/currency/test" class="form-inline" style="margin-top: 12px;">
+                {% set selected_channel = settings.currency_report_channel_id or currency_config.channel_id %}
+                <select name="channel_id">
+                    <option value="">(설정 채널 사용)</option>
+                    {% for channel in currency_channels %}
+                    <option value="{{ channel.id }}" {% if selected_channel and selected_channel|string == channel.id|string %}selected{% endif %}>
+                        #{{ channel.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn-secondary">테스트 전송</button>
+                <span class="muted">선택한 채널로 즉시 환율 메시지를 보냅니다.</span>
+            </form>
+            {% if not currency_channels %}
+            <p class="muted" style="margin-top: 8px;">길드 채널을 불러올 수 없습니다. 봇 권한을 확인하세요.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="tab-section {% if active_tab == 'exceptions' %}active{% endif %}" data-section="exceptions">
+        <div class="tab-content">
+            <form method="post" action="/guilds/{{ guild.id }}/exceptions" class="form-inline">
+                <input type="text" name="add_keyword" placeholder="예외 키워드 입력" />
+                <button type="submit" class="btn-primary">추가</button>
+            </form>
+            <div class="tag-board">
+                {% for keyword in keywords %}
+                <div class="tag-row">
+                    <span class="pill">{{ keyword }}</span>
+                    <form method="post" action="/guilds/{{ guild.id }}/exceptions">
+                        <input type="hidden" name="remove_keyword" value="{{ keyword }}">
+                        <button type="submit" class="btn-ghost danger">삭제</button>
+                    </form>
+                </div>
+                {% else %}
+                <div class="empty-state">예외 키워드가 없습니다.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-section {% if active_tab == 'logs' %}active{% endif %}" data-section="logs">
+        <div class="log-list">
+            {% for log in logs %}
+            <div class="log-row">
+                <div class="log-main">
+                    <span class="log-reason">{{ log.reason }}</span>
+                    <span class="muted">{{ log.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}</span>
+                </div>
+                <p class="log-details">{{ log.details or "" }}</p>
+                <div class="log-meta">
+                    <span class="pill subtle">사용자 {{ log.user_id }}</span>
+                    <span class="pill accent">{{ log.action or 'auto' }}</span>
+                    <span class="pill subtle">포인트 {{ log.points }}</span>
+                    <span class="pill subtle">누적 {{ log.violation_count }}</span>
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-state">로그가 없습니다.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="tab-section {% if active_tab == 'debug' %}active{% endif %}" data-section="debug">
+        <div class="log-list">
+            {% for log in debug_logs %}
+            <div class="log-row">
+                <div class="log-main">
+                    <span class="log-reason">{{ log.reason }}</span>
+                    <span class="muted">{{ log.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}</span>
+                </div>
+                <p class="log-details">{{ log.details or "" }}</p>
+                <div class="log-meta">
+                    {% set m = members.get(log.user_id) %}
+                    <div class="user-info-stack">
+                        <span class="name">{{ m.user.username if m and m.user else "Unknown" }}</span>
+                        <span class="muted">UID {{ log.user_id }}</span>
+                    </div>
+                    <span class="pill accent">{{ log.action or 'test' }}</span>
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-state">테스트 로그가 없습니다. /test를 실행해 기록하세요.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="tab-section {% if active_tab == 'users' %}active{% endif %}" data-section="users">
+        <div class="panel subtle-panel">
+            <div class="panel__header">
+                <div>
+                    <p class="eyebrow">포인트 조정</p>
+                    <h3>사용자 포인트 추가/삭제</h3>
+                </div>
+            </div>
+            <form method="post" action="/guilds/{{ guild.id }}/users/adjust" class="form-inline">
+                <input type="number" name="user_id" placeholder="유저 ID" required>
+                <input type="number" name="delta" placeholder="+/- 포인트" required>
+                <input type="text" name="reason" placeholder="사유 (선택)" />
+                <button type="submit" class="btn-primary">적용</button>
+            </form>
+        </div>
+        <div class="table-wrapper" style="margin-top: 12px;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>길드 / 유저</th>
+                        <th>포인트 합계</th>
+                        <th>최대 누적</th>
+                        <th>로그 수</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in user_points %}
+                    <tr>
+                        <td>
+                            {% set m = members.get(u.user_id) %}
+                            <div class="stack row">
+                                <span class="pill subtle">{{ guild_name }}</span>
+                                {% if m and m.user and m.user.avatar %}
+                                {% set avatar_id = m.user.avatar %}
+                                {% set avatar_url = 'https://cdn.discordapp.com/avatars/' ~ m.user.id ~ '/' ~ avatar_id
+                                ~ '.png?size=64' %}
+                                <img src="{{ avatar_url }}" alt="avatar" class="avatar-sm">
+                                {% endif %}
+                                <div class="stack">
+                                    <span class="name">{{ m.user.username if m and m.user else u.user_id }}</span>
+                                    <span class="muted">ID: {{ u.user_id }}</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ u.points }}</td>
+                        <td>{{ u.max_violation }}</td>
+                        <td>{{ u.entries }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="empty-state">기록된 유저가 없습니다.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Client-side tab switch to avoid cache issues; also updates URL query param.
+    const tabLinks = document.querySelectorAll('.tab');
+    const sections = document.querySelectorAll('.tab-section');
+    function activate(tab) {
+        tabLinks.forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+        sections.forEach(s => s.classList.toggle('active', s.dataset.section === tab));
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', tab);
+        history.replaceState({}, '', url);
+    }
+    tabLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            activate(link.dataset.tab);
+        });
+    });
+
+    // Currency countdown
+    const countdownEl = document.getElementById('currency-countdown');
+    if (countdownEl && countdownEl.dataset.target) {
+        const intervalMinutes = parseInt(countdownEl.dataset.interval || '0', 10);
+        let target = new Date(countdownEl.dataset.target);
+
+        function updateCountdown() {
+            if (Number.isNaN(target.getTime())) {
+                countdownEl.textContent = '--:--';
+                return;
+            }
+            const now = new Date();
+            let diff = target.getTime() - now.getTime();
+            if (diff <= 0 && intervalMinutes > 0) {
+                target = new Date(target.getTime() + intervalMinutes * 60 * 1000);
+                diff = target.getTime() - now.getTime();
+            }
+            diff = Math.max(diff, 0);
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            countdownEl.textContent = `${hours.toString().padStart(2, '0')}:${minutes
+                .toString()
+                .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        updateCountdown();
+        setInterval(updateCountdown, 1000);
+    }
+
+    // Real-time updates via Server-Sent Events
+    const guildId = parseInt("{{ guild.id }}");
+    const evtSource = new EventSource('/events');
+
+    evtSource.onopen = function () {
+        console.log('SSE 연결됨 - Guild:', guildId);
+    };
+
+    evtSource.onmessage = function (event) {
+        console.log('SSE 메시지 수신:', event.data);
+        const data = JSON.parse(event.data);
+        if (data.type === 'new_log' && data.data.guild_id === guildId) {
+            const log = data.data;
+            // Show notification
+            showNotification(`새 로그: ${log.reason}`);
+
+            // If on debug tab and it's a test action, add new entry
+            const debugList = document.querySelector('[data-section="debug"] .log-list');
+
+            if (log.action === 'test' && debugList) {
+                const emptyState = debugList.querySelector('.empty-state');
+                if (emptyState) emptyState.remove();
+
+                const newRow = document.createElement('div');
+                newRow.className = 'log-row new-entry';
+                newRow.innerHTML = `
+                    <div class="log-main">
+                        <span class="log-reason">${log.reason}</span>
+                        <span class="muted">${new Date().toLocaleString('ko-KR')}</span>
+                    </div>
+                    <p class="log-details">${log.details || ''}</p>
+                    <div class="log-meta">
+                        <div class="user-info-stack">
+                            <span class="name">Unknown</span>
+                            <span class="muted">UID ${log.user_id}</span>
+                        </div>
+                        <span class="pill accent">${log.action || 'test'}</span>
+                    </div>
+                `;
+                debugList.insertBefore(newRow, debugList.firstChild);
+            }
+        }
+    };
+
+    evtSource.onerror = function (err) {
+        console.error('SSE 에러:', err);
+        // Reconnect after 5 seconds
+        setTimeout(() => {
+            console.log('SSE 재연결 시도...');
+        }, 5000);
+    };
+
+    function showNotification(message) {
+        const toast = document.createElement('div');
+        toast.className = 'toast-notification';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+</script>
+{% endblock %}

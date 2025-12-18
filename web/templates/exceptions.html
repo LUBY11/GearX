@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}AI 예외 키워드{% endblock %}
+{% block crumb %}예외 관리{% endblock %}
+{% block heading %}{{ guild.name }} 예외 키워드{% endblock %}
+{% block content %}
+<div class="panel">
+    <header class="panel__header">
+        <div>
+            <p class="eyebrow">AI 유사도 화이트리스트</p>
+            <h2>예외 키워드 관리</h2>
+        </div>
+        <span class="badge neutral">{{ keywords|length }}개</span>
+    </header>
+    <form method="post" action="/guilds/{{ guild.id }}/exceptions" class="form-inline">
+        <input type="text" name="add_keyword" placeholder="예외 키워드 입력" />
+        <button type="submit" class="btn-primary">추가</button>
+        <a class="btn-ghost" href="/guilds/{{ guild.id }}">← 설정으로 돌아가기</a>
+    </form>
+    <div class="tag-board">
+        {% for keyword in keywords %}
+        <div class="tag-row">
+            <span class="pill">{{ keyword }}</span>
+            <form method="post" action="/guilds/{{ guild.id }}/exceptions">
+                <input type="hidden" name="remove_keyword" value="{{ keyword }}">
+                <button type="submit" class="btn-ghost danger">삭제</button>
+            </form>
+        </div>
+        {% else %}
+        <div class="empty-state">예외 키워드가 없습니다.</div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

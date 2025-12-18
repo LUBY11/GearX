@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Spam Guard{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar">
+        <div class="sidebar__brand">
+            <div class="brand-mark">🛡️</div>
+            <div>
+                <div class="brand-title">Spam Guard</div>
+                <div class="brand-sub">Discord Anti-Spam</div>
+            </div>
+        </div>
+        <nav class="sidebar__nav">
+            <a href="/" class="nav-link">대시보드</a>
+            <a href="/guilds/manage" class="nav-link subtle">길드 추가/관리</a>
+            {% if active_guild_id %}
+            <div class="nav-group-label">활성 길드</div>
+            <a href="/guilds/{{ active_guild_id }}?tab=overview" class="nav-link subtle">개요</a>
+            <a href="/guilds/{{ active_guild_id }}?tab=settings" class="nav-link subtle">설정</a>
+            <a href="/guilds/{{ active_guild_id }}?tab=logs" class="nav-link subtle">로그</a>
+            <a href="/guilds/{{ active_guild_id }}?tab=users" class="nav-link subtle">유저</a>
+            <a href="/guilds/{{ active_guild_id }}?tab=exceptions" class="nav-link subtle">AI 예외 키워드</a>
+            <a href="/guilds/{{ active_guild_id }}?tab=debug" class="nav-link subtle">디버깅</a>
+            {% endif %}
+            <a href="/auth/login" class="nav-link subtle">Discord 로그인</a>
+        </nav>
+        {% if user %}
+        <div class="sidebar__user">
+            {% if user.avatar %}
+            <img src="https://cdn.discordapp.com/avatars/{{ user.id }}/{{ user.avatar }}.png?size=64" alt="avatar" class="user-avatar">
+            {% else %}
+            <div class="avatar-fallback">{{ user.username[:1] | upper }}</div>
+            {% endif %}
+            <div>
+                <div class="user-name">{{ user.username }}</div>
+                <div class="user-meta">#{{ user.discriminator }}</div>
+            </div>
+            <a class="btn-logout" href="/auth/logout" title="로그아웃">🚪</a>
+        </div>
+        {% endif %}
+    </aside>
+    <div class="content-area">
+        <header class="page-top">
+            <div class="page-meta">
+                <div class="crumb">홈 · {% block crumb %}대시보드{% endblock %}</div>
+                <h1 class="page-title">{% block heading %}대시보드{% endblock %}</h1>
+            </div>
+            {% block actions %}{% endblock %}
+        </header>
+        <main class="page-content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</div>
+</body>
+</html>
